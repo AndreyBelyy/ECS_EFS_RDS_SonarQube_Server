@@ -1,1 +1,101 @@
-
+{
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:###:task-definition/SonarQubeProd:1",
+    "containerDefinitions": [
+        {
+            "name": "sonarqube",
+            "image": "#####.dkr.ecr.us-east-1.amazonaws.com/sonarqube-community:latest",
+            "cpu": 0,
+            "portMappings": [
+                {
+                    "name": "sonar",
+                    "containerPort": 9000,
+                    "hostPort": 9000,
+                    "protocol": "tcp",
+                    "appProtocol": "http"
+                }
+            ],
+            "essential": true,
+            "command": [
+                "-Dsonar.search.javaAdditionalOpts=-Dnode.store.allow_mmap=false"
+            ],
+            "environment": [
+                {
+                    "name": "SONAR_JDBC_URL",
+                    "value": "jdbc:postgresql://######.us-####-1.rds.amazonaws.com:5432/postgres"
+                },
+                {
+                    "name": "SONAR_JDBC_USERNAME",
+                    "value": "###"
+                },
+                {
+                    "name": "SONAR_JDBC_PASSWORD",
+                    "value": "###"
+                }
+            ],
+            "environmentFiles": [],
+            "mountPoints": [],
+            "volumesFrom": [],
+            "ulimits": [],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-create-group": "true",
+                    "awslogs-group": "/ecs/SonarQubeProd",
+                    "awslogs-region": "us-east-1",
+                    "awslogs-stream-prefix": "ecs"
+                },
+                "secretOptions": []
+            }
+        }
+    ],
+    "family": "SonarQubeProd",
+    "taskRoleArn": "arn:aws:iam::###:role/ECS-ROL",
+    "executionRoleArn": "arn:aws:iam::###:role/ECS-ROL",
+    "networkMode": "awsvpc",
+    "revision": 1,
+    "volumes": [
+        {
+            "name": "conf",
+            "efsVolumeConfiguration": {
+                "fileSystemId": "###",
+                "rootDirectory": "/opt/sonarqube/conf"
+            }
+        },
+        {
+            "name": "logs",
+            "efsVolumeConfiguration": {
+                "fileSystemId": "###,
+                "rootDirectory": "/opt/sonarqube/logs"
+            }
+        },
+        {
+            "name": "data",
+            "efsVolumeConfiguration": {
+                "fileSystemId": "###",
+                "rootDirectory": "/opt/sonarqube/data"
+            }
+        },
+        {
+            "name": "extensions",
+            "efsVolumeConfiguration": {
+                "fileSystemId": "###",
+                "rootDirectory": "/opt/sonarqube/extensions"
+            }
+        }
+    ],
+    
+    "placementConstraints": [],
+    "compatibilities": [
+        "EC2",
+        "FARGATE"
+    ],
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "cpu": "2048",
+    "memory": "4096",
+    "runtimePlatform": {
+        "cpuArchitecture": "X86_64",
+        "operatingSystemFamily": "LINUX"
+    }
+}
