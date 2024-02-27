@@ -1,0 +1,81 @@
+pipeline {
+    options {
+        ansiColor('xterm')
+    }
+    agent "any"
+    environment {
+        scannerHome = tool name: 'sonar-scanner', type: 'hudson.plugins.sonar.SonarRunnerInstallation';
+    }
+    
+    stages {
+        stage('Clean Workspace') {
+            steps {
+                sh '''
+                rm -rf *
+                rm -rf .g*
+                rm -rf .d*
+                ls -la
+                '''
+            }
+        }
+        stage('GitCode') {
+            steps {
+                dir("./builder"){
+                // Code to check with SonarQube
+                git branch: '${branch}', url: 'https://${repositoryName}', changelog: false, credentialsId: 'GitHub-Token', poll: false
+                }
+            }
+        }
+        stage('SonarQube Analysis'){
+            steps {
+                script {
+                    // Extract the project name from the repository URL
+                    env.PROJECT_NAME = sh(script: "basename -s .git ${params.repositoryName}", returnStdout: true).trim()
+                }
+                withSonarQubeEnv(installationName: 'sonar-server') {
+                    // Run the sonar-scanner command using the extracted project name
+                    sh "${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=${env.PROJECT_NAME} -Dsonar.java.binaries=."
+                }
+            }
+        }           
+        stage('GitBuilder') {
+            steps {
+                dir("./builder") {
+                    // Descarga el repositorio del template EC2 necesario para dockerizar la aplicaciones
+                    git branch: 'master', url: 'https://github.com/EC2DockerBuilderTemplate.git', changelog: false, credentialsId: 'GitHub-Token', poll: false
+                    sh "ls -la"
+                }
+            }
+        }
+        stage('Build') {
+            environment {
+                GIT_CLONE = "git clone https://devops"
+                TYPE_OPERATION = "1"
+            }
+            steps {
+                dir("./builder") {
+                    sh 'chmod +x -R .'
+                    script {
+                        env.dockerImage = readFile('version.txt').trim()
+                        sh 'echo "Se guardó la variable de entorno dockerImage"'
+                        sh "echo ${dockerImage}"
+                    }
+                }
+            }
+        }
+        stage('Trivy') {
+            steps {
+                dir("./builder") {
+                    sh 'cat trivy_scan_export.txt'
+                    withAWS(credentials: 'AWS-Credentials-DEV', region: 'us-east-1') {
+                        script {
+                            // Correct way to assign a value to a variable within pipeline script block
+                            env.COMPONENT_NAME = sh(script: "basename -s .git ${params.repositoryName}", returnStdout: true).trim()
+                        }
+                        s3Upload(acl: 'Private', bucket: 'security-scans-reports', path: "${env.COMPONENT_NAME}/", file: 'trivy_scan_export.txt')
+                    }
+                }
+            }
+        }
+    }
+}
